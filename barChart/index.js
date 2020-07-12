@@ -176,14 +176,12 @@ db.collection('dishes').onSnapshot(res => {
         break;
       }
       case 'modified': {
-        let dataIndex = data.findIndex(rect => rect.name === change.doc.data().name)
-        data[dataIndex] = change.doc.data()
+        data[change.oldIndex] = change.doc.data()
         update(data);
         break;
       }
       case 'removed': {
-        let dataIndex = data.findIndex(rect => rect.name === change.doc.data().name)
-        data.splice(dataIndex)
+        data.splice(change.oldIndex, 1)
         remove(data);
         break;
       }
