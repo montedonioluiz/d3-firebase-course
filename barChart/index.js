@@ -153,34 +153,44 @@ const remove = data => {
 
 // Get Data
 // d3.json('./menu.json')
-db.collection('dishes').get().then(docs => {
-  let data = []
-  docs.forEach(doc => data.push(doc.data()))
+// db.collection('dishes').get().then(docs => {
+//   let data = []
+//   docs.forEach(doc => data.push(doc.data()))
 
-  populate(data);
-});
+//   populate(data);
+// });
 
+
+let data = []
 
 // Listen to data
 db.collection('dishes').onSnapshot(res => {
-  let data = []
-  res.docs.forEach(doc => data.push(doc.data()))
+  // res.docs.forEach(doc => data.push(doc.data()))
 
   res.docChanges().forEach(change => {
-    console.log(change.type, change.doc.data())
+    // console.log(change.type, change.doc.data())
     switch (change.type) {
-      case 'added':
+      case 'added': {
+        data.push(change.doc.data())
         add(data);
         break;
-      case 'modified':
+      }
+      case 'modified': {
+        let dataIndex = data.findIndex(rect => rect.name === change.doc.data().name)
+        data[dataIndex] = change.doc.data()
         update(data);
         break;
-      case 'removed':
+      }
+      case 'removed': {
+        let dataIndex = data.findIndex(rect => rect.name === change.doc.data().name)
+        data.splice(dataIndex)
         remove(data);
         break;
-      default:
+      }
+      default: {
         console.log("ue: ", change)
         break;
+      }
     }
   })
 })
