@@ -30,43 +30,40 @@ const x = d3.scaleBand()
   .paddingInner(0.2)
   .paddingOuter(0.2);
 
-
 // Create axes
 const xAxis = d3.axisBottom(x);
 const yAxis = d3.axisLeft(y)
   .tickFormat(data => `${data} orders`);
 
-
-// Update func
-const update = (data) => {
-  // 1. update scales 
-  y.domain([0, d3.max(data, data => data.orders)])
-  x.domain(data.map(menuItem => menuItem.name))
-
-  // 2. reflect DB data to graph data
-  const rects = graph.selectAll('rect').data(data);
-
-  // 3. clear leftover rects from DOM (in case something was removed from DB)
-  // rects.exit().remove();
-
-  // 4. update current DOM attrs (in case an existing registry was changed in the DB)
-  rects
+// Update attrs func
+const updateRegSelectionAttrs = (graph) => {
+  graph
     .attr('width', x.bandwidth())
     .attr('height', data => graphHeight - y(data.orders))
     .attr('fill', 'orange')
     .attr('x', data => x(data.name))
     .attr('y', data => y(data.orders));
+}
 
-  // 5. add attrs to new rects (in case new data was inserted in the DB)
-  // rects.enter()
-  //   .append('rect')
-  //   .attr('width', x.bandwidth())
-  //   .attr('height', data => graphHeight - y(data.orders))
-  //   .attr('fill', 'orange')
-  //   .attr('x', data => x(data.name))
-  //   .attr('y', data => y(data.orders));
+// Update entering attrs func
+const updateEnterSelectionAttrs = (graph) => {
+  updateRegSelectionAttrs(graph.enter().append('rect'));
+}
 
-  // 6. Update axes if necessary
+
+// Initial population
+const populate = (data) => {
+  // 1. update scales 
+  y.domain([0, d3.max(data, data => data.orders)]);
+  x.domain(data.map(menuItem => menuItem.name));
+
+  // 2. reflect DB data to graph data
+  const rects = graph.selectAll('rect').data(data);
+
+  // 3. Create new rects and add attrs according to the data from the DB
+  updateEnterSelectionAttrs(rects);
+
+  // 4. Reflect data on Axes
   yAxis.ticks(d3.max(data, data => data.orders) / 100)
   xAxisGroup.call(xAxis);
 
@@ -86,16 +83,13 @@ const add = (data) => {
   // 2. reflect DB data to graph data
   const rects = graph.selectAll('rect').data(data);
 
-  // 3. add attrs to new rects (in case new data was inserted in the DB)
-  rects.enter()
-    .append('rect')
-    .attr('width', x.bandwidth())
-    .attr('height', data => graphHeight - y(data.orders))
-    .attr('fill', 'orange')
-    .attr('x', data => x(data.name))
-    .attr('y', data => y(data.orders));
+  // 3. update current DOM attrs
+  updateRegSelectionAttrs(rects);
 
-  // 4. Update axes if necessary
+  // 4. create and add attrs to new leftover rects 
+  updateEnterSelectionAttrs(rects);
+
+  // 5. Update axes if necessary
   yAxis.ticks(d3.max(data, data => data.orders) / 100)
   xAxisGroup.call(xAxis);
 
@@ -104,7 +98,29 @@ const add = (data) => {
     .attr('transform', 'rotate(-40)')
     .attr('fill', 'blue');
   yAxisGroup.call(yAxis);
+}
 
+// Update func
+const update = (data) => {
+  // 1. update scales 
+  y.domain([0, d3.max(data, data => data.orders)]);
+  x.domain(data.map(menuItem => menuItem.name));
+
+  // 2. reflect DB data to graph data
+  const rects = graph.selectAll('rect').data(data);
+
+  // 4. update current DOM attrs (in case an existing registry was changed in the DB)
+  updateRegSelectionAttrs(rects);
+
+  // 6. Update axes if necessary
+  yAxis.ticks(d3.max(data, data => data.orders) / 100)
+  xAxisGroup.call(xAxis);
+
+  xAxisGroup.selectAll('text')
+    .attr('text-anchor', 'end')
+    .attr('transform', 'rotate(-40)')
+    .attr('fill', 'blue');
+  yAxisGroup.call(yAxis);
 }
 
 // Remove func
@@ -119,7 +135,10 @@ const remove = data => {
   // 3. clear leftover rects from DOM (in case something was removed from DB)
   rects.exit().remove();
 
-  // 4. Update axes if necessary
+  // 5. update current DOM attrs (in case an existing registry was changed in the DB)
+  updateRegSelectionAttrs(rects)
+
+  // 6. Update axes if necessary
   yAxis.ticks(d3.max(data, data => data.orders) / 100)
   xAxisGroup.call(xAxis);
 
@@ -132,40 +151,36 @@ const remove = data => {
 
 
 
-// Listen to data
-db.collection('dishes').onSnapshot(res => {
-  console.log("B")
-  // res.docChanges().forEach(change => {
-  //   console.log(change.type, change.doc.data())
-  //   switch (change.type) {
-  //     case 'added':
-  //       add(change.doc.data());
-  //       break;
-  //     case 'modified':
-  //       update(change.doc.data());
-  //       break;
-  //     case 'removed':
-  //       remove(change.doc.data());
-  //       break;
-  //     default:
-  //       console.log("ue: ", change)
-  //       break;
-  //   }
-  // })
-})
-
-
 // Get Data
 // d3.json('./menu.json')
 db.collection('dishes').get().then(docs => {
-  console.log("A")
-  // let data = []
-  // docs.forEach(doc => data.push(doc.data()))
+  let data = []
+  docs.forEach(doc => data.push(doc.data()))
 
-  // // d3.interval(() => {
-  // //   data[0].orders += 50;
-  // //   // update(data);
-  // // }, 1000)
-
-  // update(data);
+  populate(data);
 });
+
+
+// Listen to data
+db.collection('dishes').onSnapshot(res => {
+  let data = []
+  res.docs.forEach(doc => data.push(doc.data()))
+
+  res.docChanges().forEach(change => {
+    console.log(change.type, change.doc.data())
+    switch (change.type) {
+      case 'added':
+        add(data);
+        break;
+      case 'modified':
+        update(data);
+        break;
+      case 'removed':
+        remove(data);
+        break;
+      default:
+        console.log("ue: ", change)
+        break;
+    }
+  })
+})
