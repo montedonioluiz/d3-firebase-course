@@ -38,10 +38,12 @@ const yAxis = d3.axisLeft(y)
 // Update attrs func
 const updateRegSelectionAttrs = (graph) => {
   graph.attr('width', x.bandwidth)
-    .attr("height", d => graphHeight - y(d.orders))
     .attr('fill', 'orange')
     .attr('x', d => x(d.name))
-    .attr('y', d => y(d.orders));
+    .transition().duration(500)
+    .attr("height", d => graphHeight - y(d.orders))
+    .attr('y', d => y(d.orders))
+
 }
 
 // Update entering attrs func
@@ -49,10 +51,10 @@ const updateEnterSelectionAttrs = (graph) => {
   graph.enter()
     .append('rect')
     .attr('width', x.bandwidth)
-    .attr("height", d => 0)
+    .attr("height", 0)
     .attr('fill', 'orange')
-    .attr('x', (d) => x(d.name))
-    .attr('y', d => graphHeight)
+    .attr('x', d => x(d.name))
+    .attr('y', graphHeight)
     .transition().duration(500)
     .attr("height", d => graphHeight - y(d.orders))
     .attr('y', d => y(d.orders));
