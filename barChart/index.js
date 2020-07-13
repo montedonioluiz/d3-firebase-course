@@ -26,7 +26,7 @@ const y = d3.scaleLinear()
 
 // BandScale for width
 const x = d3.scaleBand()
-  .range([0, 500])
+  .range([0, graphWidth])
   .paddingInner(0.2)
   .paddingOuter(0.2);
 
@@ -37,42 +37,27 @@ const yAxis = d3.axisLeft(y)
 
 // Update attrs func
 const updateRegSelectionAttrs = (graph) => {
-  graph
-    .attr('width', x.bandwidth())
-    .attr('height', data => graphHeight - y(data.orders))
+  graph.attr('width', x.bandwidth)
+    .attr("height", d => graphHeight - y(d.orders))
     .attr('fill', 'orange')
-    .attr('x', data => x(data.name))
-    .attr('y', data => y(data.orders));
+    .attr('x', d => x(d.name))
+    .attr('y', d => y(d.orders));
 }
 
 // Update entering attrs func
 const updateEnterSelectionAttrs = (graph) => {
-  updateRegSelectionAttrs(graph.enter().append('rect'));
+  graph.enter()
+    .append('rect')
+    .attr('width', x.bandwidth)
+    .attr("height", d => 0)
+    .attr('fill', 'orange')
+    .attr('x', (d) => x(d.name))
+    .attr('y', d => graphHeight)
+    .transition().duration(500)
+    .attr("height", d => graphHeight - y(d.orders))
+    .attr('y', d => y(d.orders));
 }
 
-
-// Initial population
-const populate = (data) => {
-  // 1. update scales 
-  y.domain([0, d3.max(data, data => data.orders)]);
-  x.domain(data.map(menuItem => menuItem.name));
-
-  // 2. reflect DB data to graph data
-  const rects = graph.selectAll('rect').data(data);
-
-  // 3. Create new rects and add attrs according to the data from the DB
-  updateEnterSelectionAttrs(rects);
-
-  // 4. Reflect data on Axes
-  yAxis.ticks(d3.max(data, data => data.orders) / 100)
-  xAxisGroup.call(xAxis);
-
-  xAxisGroup.selectAll('text')
-    .attr('text-anchor', 'end')
-    .attr('transform', 'rotate(-40)')
-    .attr('fill', 'blue');
-  yAxisGroup.call(yAxis);
-}
 
 // Add func
 const add = (data) => {
@@ -150,25 +135,19 @@ const remove = data => {
 }
 
 
-
-// Get Data
-// d3.json('./menu.json')
-// db.collection('dishes').get().then(docs => {
-//   let data = []
-//   docs.forEach(doc => data.push(doc.data()))
-
-//   populate(data);
-// });
-
-
 let data = []
+let initialData = true;
 
 // Listen to data
 db.collection('dishes').onSnapshot(res => {
-  // res.docs.forEach(doc => data.push(doc.data()))
-
-  res.docChanges().forEach(change => {
-    // console.log(change.type, change.doc.data())
+  if (initialData) {
+    initialData = false
+    res.docChanges().forEach(change => {
+      data.push(change.doc.data())
+    })
+    add(data);
+  } else {
+    let change = res.docChanges()[0];
     switch (change.type) {
       case 'added': {
         data.push(change.doc.data())
@@ -190,5 +169,5 @@ db.collection('dishes').onSnapshot(res => {
         break;
       }
     }
-  })
+  }
 })
