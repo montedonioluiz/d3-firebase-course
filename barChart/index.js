@@ -35,9 +35,19 @@ const xAxis = d3.axisBottom(x);
 const yAxis = d3.axisLeft(y)
   .tickFormat(data => `${data} orders`);
 
+
+// Width Tween (custom transition used for complex cases)
+const widthTweenFunc = _ => {
+  let i = d3.interpolate(0, x.bandwidth());
+  return function(t){
+
+    return i(t);
+  }
+}
+
 // Update attrs func
 const updateRegSelectionAttrs = (graph) => {
-  graph.attr('width', x.bandwidth)
+  graph.attr('width', x.bandwidth())
     .attr('fill', 'orange')
     .attr('x', d => x(d.name))
     .transition().duration(500)
@@ -50,16 +60,16 @@ const updateRegSelectionAttrs = (graph) => {
 const updateEnterSelectionAttrs = (graph) => {
   graph.enter()
     .append('rect')
-    .attr('width', x.bandwidth)
+    // .attr('width', x.bandwidth())
     .attr("height", 0)
     .attr('fill', 'orange')
     .attr('x', d => x(d.name))
     .attr('y', graphHeight)
     .transition().duration(500)
+    .attrTween('width', widthTweenFunc)
     .attr("height", d => graphHeight - y(d.orders))
     .attr('y', d => y(d.orders));
 }
-
 
 // Add func
 const add = (data) => {
