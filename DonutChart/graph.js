@@ -44,6 +44,24 @@ const add = (data) => {
   legendGroup.selectAll('text')
     .attr('fill', 'white')
 
+  // tooltip
+  const tip = d3.tip()
+    .attr('class', 'tip card')
+    .html(({ data }) => {
+      return `
+        <div class="name">
+          ${data.name}
+        </div>
+        <div class="cost">
+          ${data.cost}
+        </div>
+        <div class="delete">
+          Click graph to delete
+        </div>
+      `
+    })
+
+  graph.call(tip)
 
   // join pied data to DOM
   let paths = graph.selectAll('path')
@@ -66,6 +84,18 @@ const add = (data) => {
     })
     .transition().duration(750)
     .attrTween('d', arcTweenEnter)
+
+  // add events
+  graph.selectAll('path')
+    .on('mouseover', (data, index, dataArray) => {
+      tip.show(data, dataArray[index])
+      handleMouseOver(data, index, dataArray)
+    })
+    .on('mouseout', (data, index, dataArray) => {
+      tip.hide()
+      handleMouseOut(data, index, dataArray)
+    })
+    .on('click', handleClick)
 
 }
 
@@ -112,19 +142,19 @@ db.collection('expenses').onSnapshot(res => {
   if (initialData) {
     initialData = false
     res.docChanges().forEach(change => {
-      data.push(change.doc.data())
+      data.push({ ...change.doc.data(), id: change.doc.id })
     })
     add(data);
   } else {
     let change = res.docChanges()[0];
     switch (change.type) {
       case 'added': {
-        data.push(change.doc.data())
+        data.push({ ...change.doc.data(), id: change.doc.id })
         add(data);
         break;
       }
       case 'modified': {
-        data[change.oldIndex] = change.doc.data()
+        data[change.oldIndex] = { ...change.doc.data(), id: change.doc.id }
         update(data);
         break;
       }
@@ -142,7 +172,7 @@ db.collection('expenses').onSnapshot(res => {
 })
 
 const arcTweenExit = data => {
-  var interpolate = d3.interpolate(data.startAngle, data.endAngle)
+  var interpolate = d3.interpolate(data.endAngle, data.startAngle)
 
   return function (t) {
     data.endAngle = interpolate(t)
@@ -167,4 +197,21 @@ function arcTweenUpdate(data) {
   return function (t) {
     return arcPath(interpolate(t))
   }
+}
+
+// event handlers
+const handleMouseOver = (data, index, dataArray) => {
+  d3.select(dataArray[index])
+    .transition('changeSliceFill').duration(300)
+    .attr('fill', '#fff')
+}
+
+const handleMouseOut = ({ data }, index, dataArray) => {
+  d3.select(dataArray[index])
+    .transition('changeSliceFill').duration(300)
+    .attr('fill', color(data.name))
+}
+
+const handleClick = ({ data }) => {
+  db.collection('expenses').doc(data.id).delete()
 }
